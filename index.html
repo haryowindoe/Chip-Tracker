@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chips">
+<meta name="theme-color" content="#0b1f1a">
+<title>Chip Tracker</title>
+<link rel="apple-touch-icon" id="ati">
+<style>
+:root{color-scheme:dark;--bg:#0b1f1a;--c1:#14332b;--c2:#1f4a3c;--tx:#f2f7f4;--mu:#9bbdb0;--ac:#f5c542;--rd:#c9453d;--gn:#3fb97a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html{scroll-padding:150px 0 340px}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.3 -apple-system,system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-user-select:none;user-select:none;padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left))}
+.sr,.skip:not(:focus){position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip:focus{position:fixed;top:8px;left:8px;z-index:20;background:var(--ac);color:#111;padding:10px 14px;border-radius:10px}
+button,input{font:inherit;color:inherit}
+button{border:0;border-radius:12px;padding:12px;min-height:44px;background:var(--c2);touch-action:manipulation;cursor:pointer}
+button:active{filter:brightness(1.4)}
+button:disabled{opacity:.35}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+@media(hover:hover){button:hover:not(:disabled){filter:brightness(1.2)}}
+.fold{background:var(--rd)}.go{background:var(--gn);color:#06140e;font-weight:700}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 8px) 0 8px;border-bottom:1px solid #fff2}
+.row{display:flex;align-items:center;gap:8px}.row>*{flex:1;min-width:0}
+header button{font-size:15px;padding:8px 6px}
+.pot{flex:2.4;font-size:32px;font-weight:800;color:var(--ac)}
+.pot small{display:block;font-size:13px;font-weight:500;color:var(--mu)}
+#bl small{display:block;font-size:12px;font-weight:400;opacity:.85}
+#bl.up{background:var(--ac);color:#111}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:12px 0 340px}
+.p{position:relative}
+.pick{display:block;width:100%;text-align:left;padding:12px;border-radius:16px;background:var(--c1);border:2px solid transparent}
+.p.sel .pick{border-color:var(--ac)}.p.f .pick{opacity:.5}
+.nm{display:block;font-size:18px;font-weight:600;padding-right:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{display:block;font-size:30px;font-weight:800;margin:4px 0}
+.bt{font-size:14px;color:var(--mu)}
+.mo{position:absolute;top:4px;right:4px;width:44px;background:none;font-size:20px;color:var(--mu)}
+.db{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:var(--ac);color:#111;font-size:12px;margin-right:6px}
+#bar{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#0b1f1af2;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid #fff3;padding:8px max(16px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 10px) max(16px,env(safe-area-inset-left))}
+#bar .row{margin:6px 0}#bar button{padding:12px 4px}
+.ov{position:fixed;inset:0;z-index:9;background:#000b;display:flex;overflow:auto;overscroll-behavior:contain;padding:16px}
+.box{margin:auto;background:var(--c1);border-radius:18px;padding:18px;width:min(440px,100%)}
+.box h2{margin:0 0 8px;font-size:20px;text-wrap:balance}.box h3{margin:12px 0 6px;font-size:16px}.box p{margin:0 0 8px}
+.box>button{display:block;width:100%;margin:6px 0;text-align:left}.box>button b{float:right}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{flex:1 1 40%}
+label{display:block;margin:8px 0;color:var(--mu);font-size:14px}
+input{display:block;width:100%;margin-top:4px;padding:12px;border-radius:10px;border:1px solid #fff3;background:var(--bg);-webkit-user-select:text;user-select:text}
+</style>
+</head>
+<body>
+<a class="skip" href="#grid">Skip to players</a>
+<header>
+ <h1 class="sr">Chip Tracker</h1>
+ <div class="row"><div class="pot" role="status"><small id="info"></small><span id="pot">0</span></div><button id="undo"><span aria-hidden="true">↶</span> Undo</button><button id="add">Add Player</button><button id="cfg"><span aria-hidden="true">⚙︎</span> Setup</button></div>
+ <div class="row" style="margin-top:8px"><button id="bl"></button><button id="award" class="go"></button></div>
+</header>
+<main id="grid" tabindex="-1"></main>
+<footer id="bar"></footer>
+<div id="ov" class="ov" hidden></div>
+<script>
+const K='chipTracker.v1',SN=['Pre-flop','Flop','Turn','River'],$=i=>document.getElementById(i),NF=new Intl.NumberFormat();
+const LAD=[20,30,50,100,150,200,300,400,600,800,1000,1500,2000,3000,4000,6000,8000,10000]; // big-blind ladder, SB = BB/2
+const def=()=>({pl:[],pot:0,hand:1,st:0,dl:0,sel:null,add:0,start:2000,chips:[10,25,50,200,500],nid:1,sb:10,bb:20,hpl:10,hl:0,lvl:1,up:0});
+let S,U=[];
+try{S={...def(),...JSON.parse(localStorage.getItem(K))}}catch(e){S=def()}
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+const f=n=>NF.format(n);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hi=()=>Math.max(0,...S.pl.map(p=>p.bet)); // highest bet this street (not "top": window.top is reserved)
+const cur=()=>S.pl.find(p=>p.id===S.sel);
+const byId=id=>S.pl.find(p=>p.id===id);
+const live=()=>S.pl.filter(p=>!p.fold);
+const bad=m=>{alert(m);return false};
+const pay=(p,n)=>{n=Math.max(0,Math.min(n,p.stack));p.stack-=n;p.bet+=n;p.in=(p.in||0)+n;S.pot+=n;p.ok=1};
+function run(fn){U.push(JSON.stringify(S));if(U.length>50)U.shift();fn();save();draw()}
+function nxt(from){const n=S.pl.length;for(let i=1;i<=n;i++){const p=S.pl[(from+i)%n];if(!p.fold&&p.stack>0)return p.id}return null}
+
+/* Blinds: next level = next big blind on the ladder above the current one */
+const nb=()=>LAD.find(x=>x>S.bb)||Math.ceil(S.bb*.75)*2;
+const lvlUp=()=>{const b=nb();S.sb=b/2;S.bb=b;S.lvl++;S.hl=0;S.up=1};
+/* Start a hand: post blinds; first to act = next seat after the big blind (the dealer/SB when heads-up) */
+const ready=()=>S.pl.filter(p=>p.stack>0).length>1;
+function deal(){const o=[];for(let i=1;i<=S.pl.length;i++){const p=S.pl[(S.dl+i)%S.pl.length];if(!p.fold&&p.stack>0)o.push(p)}
+ if(o.length<2)return;const hu=o.length===2,sb=hu?o[1]:o[0],bb=hu?o[0]:o[1];
+ pay(sb,S.sb);pay(bb,S.bb);sb.ok=bb.ok=0;S.sel=(hu?sb:o[2]).id}
+
+/* Side pots from each player's total chips in this hand (p.in); folded chips are dead money */
+function pots(){
+ const A=S.pl.filter(p=>p.in>0),L=[...new Set(A.filter(p=>!p.fold).map(p=>p.in))].sort((a,b)=>a-b),R=[];let v=0;
+ L.forEach(l=>{R.push({amt:A.reduce((s,p)=>s+Math.max(0,Math.min(p.in,l)-v),0),el:A.filter(p=>!p.fold&&p.in>=l).map(p=>p.id)});v=l});
+ const rest=A.reduce((s,p)=>s+Math.max(0,p.in-v),0);if(rest&&R.length)R[R.length-1].amt+=rest;
+ return R.reduce((s,r)=>s+r.amt,0)===S.pot?R:S.pot?[{amt:S.pot,el:live().map(p=>p.id)}]:[]}
+
+/* End of hand: pay each pot's winners, update stacks, move the dealer button, count the hand toward the blind level */
+function fin(A){A.forEach(({amt,ids})=>{const w=S.pl.filter(p=>ids.includes(p.id));if(!w.length)return;const q=Math.floor(amt/w.length);w.forEach(p=>p.stack+=q);w[0].stack+=amt-q*w.length});
+ S.pot=0;S.hand++;S.st=0;S.add=0;S.sel=null;S.up=0;S.dl=(S.dl+1)%S.pl.length;
+ S.pl.forEach(p=>{p.bet=0;p.in=0;p.ok=0;p.fold=p.stack<=0?1:0});
+ if(++S.hl>=S.hpl)lvlUp();deal()}
+
+/* A betting round is over when every player who can still act has acted and matched the highest bet */
+const canAct=()=>live().filter(p=>p.stack>0);
+function done(){const a=canAct(),h=hi();return a.every(p=>p.bet===h&&(p.ok||a.length<2))}
+/* After each action: next player, or close the round (next street / showdown). Returns 1 at showdown. */
+function step(p){
+ const l=live();
+ if(l.length===1){fin([{amt:S.pot,ids:[l[0].id]}]);return 0}
+ if(!done()){S.sel=nxt(S.pl.indexOf(p));return 0}
+ do{if(S.st===3){S.sel=null;return 1}S.st++;S.add=0;S.pl.forEach(q=>{q.bet=0;q.ok=0})}while(canAct().length<2);
+ S.sel=nxt(S.dl);return 0}
+function act(a,amt=S.add){const p=cur();if(!p||p.fold)return;const c=Math.max(0,hi()-p.bet);
+ if(a==='check'&&c>0)return alert('Check isn’t available: '+f(c)+' to call. Tap Call, Raise or Fold.');
+ if(a==='raise'&&amt<=0)return;
+ let sd=0;
+ run(()=>{
+  if(a==='fold')p.fold=1;
+  if(a==='check')p.ok=1;
+  if(a==='call')pay(p,c);
+  if(a==='allin')pay(p,p.stack);
+  if(a==='raise'){pay(p,c+amt);S.add=0}
+  sd=step(p)});
+ if(sd)award()}
+
+/* Overlays (accessible dialogs) */
+const lock=v=>document.querySelectorAll('header,main,footer').forEach(e=>{e.inert=v});
+const off=()=>{$('ov').hidden=true;lock(false)};
+function ov(h,fn){const o=$('ov'),s=!o.hidden&&o.firstChild?o.firstChild.scrollTop:0;
+ o.innerHTML='<div class="box" role="dialog" aria-modal="true" aria-labelledby="t" tabindex="-1">'+h+'</div>';o.hidden=false;lock(true);
+ o.onclick=e=>{if(e.target===o)return off();const b=e.target.closest('button');if(b)fn(b.dataset)};
+ o.onkeydown=e=>{if(e.key==='Escape')off();else if(e.key==='Enter'&&e.target.tagName==='INPUT'){const b=o.querySelector('[data-ok]');if(b&&!b.disabled)b.click()}};
+ o.firstChild.scrollTop=s;o.firstChild.focus({preventScroll:true})}
+/* Small form: F=[[label,name,value,numeric?]]; cb(values) returns false to keep it open */
+function ask(title,F,cb,x,fx){
+ ov(`<h2 id="t">${title}</h2>`+F.map(([l,n,v,num])=>`<label>${l}<input name="${n}" value="${esc(v)}"${num?' inputmode="numeric" pattern="[0-9]*"':''} autocomplete="off" spellcheck="false" enterkeyhint="done"></label>`).join('')+(x||'')+`<div class="row"><button data-x>Cancel</button><button class="go" data-ok>Save</button></div>`,d=>{
+  if('x' in d)return off();
+  if('ok' in d){const v={},b0=$('ov').firstChild;F.forEach(([,n])=>{v[n]=b0.querySelector(`[name="${n}"]`).value.trim()});if(cb(v)!==false&&$('ov').firstChild===b0)off()}
+  else if(fx)fx(d)})}
+
+function award(){const R=pots();if(!R.length)return;const W=R.map(r=>new Set(r.el.length===1?r.el:[]));
+ const paint=()=>ov(`<h2 id="t">${R.length>1?'Award Side Pots':'Award Pot'}</h2><p class="bt">Tap the winner of each pot. Several winners split it evenly.${R.length>1?' Chips in a pot with one player are an uncalled bet returned to that player.':''}</p>`+
+  R.map((r,i)=>`<h3>${R.length>1?(i?'Side Pot '+i:'Main Pot'):'Pot'} · ${f(r.amt)}</h3><div class="chips">`+r.el.map(id=>`<button class="${W[i].has(id)?'go':''}" data-i="${i}" data-p="${id}" aria-pressed="${W[i].has(id)}">${esc(byId(id).name)}</button>`).join('')+`</div>`).join('')+
+  `<div class="row" style="margin-top:14px"><button data-x>Cancel</button><button class="go" data-ok${W.every(w=>w.size)?'':' disabled'}>Award</button></div>`,d=>{
+  if('x' in d)off();
+  else if('ok' in d){off();run(()=>fin(R.map((r,i)=>({amt:r.amt,ids:[...W[i]]}))))}
+  else if(d.p){const w=W[d.i],id=+d.p;w.has(id)?w.delete(id):w.add(id);paint()}});
+ paint()}
+
+/* Host types the total to bet / raise to */
+function custom(){const p=cur();if(!p)return;const t=hi(),max=p.bet+p.stack;
+ ask(t?'Custom Raise':'Custom Bet',[[(t?'Raise to':'Bet')+' (total this round, max '+f(max)+')','n',Math.min(max,t+Math.max(S.add,S.bb)),1]],v=>{
+  const n=+v.n;
+  if(!/^\d+$/.test(v.n)||n<=t)return bad('Enter a whole number above '+f(t)+(t?', or use Call.':'.'));
+  if(n>max)return bad('The most this player can bet is '+f(max)+' (All-In).');
+  act('raise',n-t)})}
+
+/* Player options */
+function opt(id){const p=byId(id);ov(`<h2 id="t">${esc(p.name)}</h2><button data-a="ren">Rename</button><button data-a="edit">Set Chip Stack<b>${f(p.stack)}</b></button><button class="fold" data-a="del">Remove Player</button><button data-x>Close</button>`,d=>{
+ off();
+ if(d.a==='ren')ask('Rename Player',[['Name','name',p.name]],v=>v.name?run(()=>{p.name=v.name.slice(0,16)}):bad('Enter a name.'));
+ if(d.a==='edit')ask('Set Chip Stack',[['Chips','n',p.stack,1]],v=>/^\d+$/.test(v.n)?run(()=>{p.stack=+v.n;if(!S.pot&&!p.bet)p.fold=p.stack<=0?1:0}):bad('Enter a whole number.'));
+ if(d.a==='del'&&confirm('Remove '+p.name+'?'))run(()=>{const i=S.pl.indexOf(p);S.pl.splice(i,1);if(i<S.dl)S.dl--;S.dl=S.pl.length?S.dl%S.pl.length:0;if(S.sel===id)S.sel=null})})}
+
+$('add').onclick=()=>ask('Add Player',[['Name','name','Player '+S.nid]],v=>run(()=>{const id=S.nid++;S.pl.push({id,name:v.name.slice(0,16)||'Player '+id,stack:S.start,bet:0,in:0,ok:0,fold:S.pot>0?1:0})}));
+$('undo').onclick=()=>{if(U.length){S=JSON.parse(U.pop());save();draw()}};
+$('award').onclick=award;
+$('bl').onclick=()=>ask('Blinds',[['Small Blind (SB)','sb',S.sb,1],['Big Blind (BB)','bb',S.bb,1],['Hands Per Level','hpl',S.hpl,1]],v=>{
+ const sb=+v.sb,bb=+v.bb,h=+v.hpl;
+ if(!(Number.isInteger(sb)&&Number.isInteger(bb)&&Number.isInteger(h)&&sb>0&&bb>=sb&&h>=1))return bad('Use whole numbers: Small Blind up to Big Blind, and at least 1 hand per level.');
+ run(()=>{S.sb=sb;S.bb=bb;S.hpl=h;S.up=0})},
+ `<p class="bt">Level ${S.lvl} · ${S.hl} of ${S.hpl} hands played. Next level: ${f(nb()/2)}/${f(nb())}.</p><button data-nl>Next Level Now</button>`,
+ d=>{if('nl' in d){off();run(lvlUp)}});
+$('cfg').onclick=()=>ov(`<h2 id="t">Setup</h2><button data-a="s">Starting Stack<b>${f(S.start)}</b></button><button data-a="c">Chip Buttons<b>${S.chips.join(', ')}</b></button><button class="fold" data-a="r">Reset Game</button><button data-x>Close</button>`,d=>{
+ off();
+ if(d.a==='s')ask('Starting Stack',[['Chips for new players','n',S.start,1]],v=>+v.n>0&&/^\d+$/.test(v.n)?run(()=>{S.start=+v.n}):bad('Enter a whole number above 0.'));
+ if(d.a==='c')ask('Chip Buttons',[['Values, comma separated (max 6)','c',S.chips.join(', ')]],v=>{const a=v.c.split(',').map(x=>parseInt(x,10)).filter(x=>x>0).slice(0,6);return a.length?run(()=>{S.chips=a}):bad('Enter numbers like 10, 25, 100.')});
+ if(d.a==='r'&&confirm('Reset all players, stacks, blinds and the pot? Undo can bring them back.'))run(()=>{S={...def(),start:S.start,chips:S.chips,hpl:S.hpl}})});
+
+$('grid').onclick=e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.o)opt(+b.dataset.o);else if(b.dataset.id){S.sel=+b.dataset.id;S.add=0;save();draw()}};
+$('bar').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,c=cur();
+ if(d.b==='start')return run(deal);
+ if(!c)return;
+ if(d.v!==undefined){const m=Math.max(0,c.stack-Math.max(0,hi()-c.bet));S.add=d.v==='0'?0:Math.min(S.add+Number(d.v),m);save();draw()}
+ else if(d.b==='custom')custom();
+ else if(d.b)act(d.b)};
+
+function draw(){
+ const n=S.pl.length,t=hi(),c=cur(),R=pots();
+ $('pot').textContent=f(S.pot);
+ $('info').textContent='Hand '+S.hand+' · '+SN[S.st]+' · '+n+'/10 players';
+ $('add').disabled=n>=10;$('undo').disabled=!U.length;
+ $('award').disabled=!S.pot;$('award').textContent=R.length>1?'Side Pots · Award':'Award Pot';
+ $('bl').innerHTML=(S.up?'▲ ':'')+'Blinds '+f(S.sb)+'/'+f(S.bb)+'<small>'+(S.up?'Blinds up! · ':'')+'Level '+S.lvl+' · hand '+Math.min(S.hl+1,S.hpl)+'/'+S.hpl+'</small>';
+ $('bl').classList.toggle('up',!!S.up);
+ $('grid').innerHTML=n?S.pl.map((p,i)=>{
+  const tag=p.fold?(p.stack<=0&&!p.in?'Out':'Folded'):p.stack<=0?'All-In':p.bet?'Bet '+f(p.bet):p.ok?'Checked':'&nbsp;';
+  return `<div class="p${p.id===S.sel?' sel':''}${p.fold?' f':''}"><button class="pick" data-id="${p.id}" aria-pressed="${p.id===S.sel}"><span class="nm">${i===S.dl%n?'<b class="db" title="Dealer">D</b>':''}${esc(p.name)}</span><span class="st">${f(p.stack)}</span><span class="bt">${tag}</span></button><button class="mo" data-o="${p.id}" aria-label="Options for ${esc(p.name)}">⋯</button></div>`}).join(''):'<p class="bt">No players yet. Tap “Add Player” to begin.</p>';
+ if(!c||c.fold){$('bar').innerHTML='<p class="bt" style="text-align:center;margin:6px 0">'+(!n?'Add players to begin':S.pot?'Tap a player to act, or Award Pot at showdown':ready()?'Everyone seated? Start the hand.':'Need at least 2 players with chips')+'</p>'+(!S.pot&&ready()?'<button class="go" data-b="start" style="width:100%">Start Hand · Blinds '+f(S.sb)+'/'+f(S.bb)+'</button>':'');return}
+ const need=Math.max(0,t-c.bet),call=Math.min(need,c.stack);
+ $('bar').innerHTML=`<div class="row"><b style="font-size:18px;flex:2">${esc(c.name)}</b><span class="bt" style="text-align:right;flex:3">To call ${f(need)} · Stack ${f(c.stack)}</span></div>
+<div class="row"><button class="fold" data-b="fold">Fold</button><button data-b="check">Check</button><button data-b="call">Call${call?' '+f(call):''}</button><button data-b="allin">All-In</button></div>
+<div class="row">${S.chips.map(v=>`<button data-v="${v}">+${f(v)}</button>`).join('')}<button data-v="0">Clear</button></div>
+<div class="row"><button data-b="custom">Custom ${t?'Raise':'Bet'}</button><button class="go" data-b="raise" style="flex:2"${S.add?'':' disabled'}>${S.add?(t?'Raise To ':'Bet ')+f(t+S.add):'Add chips to '+(t?'raise':'bet')}</button></div>`;
+}
+draw();
+
+/* PWA: manifest + icon are generated here so only sw.js is a separate file */
+try{const c=document.createElement('canvas');c.width=c.height=180;const x=c.getContext('2d');
+ x.fillStyle='#0b3d2e';x.fillRect(0,0,180,180);x.fillStyle='#f5c542';x.beginPath();x.arc(90,90,62,0,7);x.fill();
+ x.fillStyle='#0b3d2e';x.font='bold 84px -apple-system,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('♠',90,96);
+ const u=c.toDataURL('image/png');$('ati').href=u;
+ const m={name:'Chip Tracker',short_name:'Chips',display:'standalone',background_color:'#0b1f1a',theme_color:'#0b1f1a',icons:[{src:u,sizes:'180x180',type:'image/png'}]};
+ const l=document.createElement('link');l.rel='manifest';l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/manifest+json'}));document.head.append(l)}catch(e){}
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
