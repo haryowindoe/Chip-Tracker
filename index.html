@@ -82,7 +82,7 @@ input{display:block;width:100%;margin-top:4px;padding:12px;border-radius:10px;bo
 <script>
 const K='chipTracker.v1',SN=['Pre-flop','Flop','Turn','River'],$=i=>document.getElementById(i),NF=new Intl.NumberFormat();
 const LAD=[2,4,6,8,10,12,16,20,24,30,40,50,60,80,100,120,160,200,240,300,400,500,600,800,1000,1200,1600,2000,3000,4000,6000,8000,10000]; // big-blind ladder, SB = BB/2
-const def=()=>({pl:[],pot:0,hand:1,st:0,dl:0,sel:null,add:0,start:2000,chips:[10,25,50,200,500],nid:1,sb:10,bb:20,hpl:10,hl:0,lvl:1,up:0,total:19540,maxRb:2,bbs:150,kop:10,sp:[],orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,q:[],kw:[],regs:[]});
+const def=()=>({pl:[],pot:0,hand:1,st:0,dl:0,sel:null,add:0,start:2000,chips:[10,25,50,200,500],nid:1,sb:10,bb:20,hpl:10,hl:0,lvl:1,up:0,total:19540,maxRb:2,bbs:150,kop:10,sp:[],orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,q:[],kw:[],regs:[],rec:0});
 let S,U=[];
 try{S={...def(),...JSON.parse(localStorage.getItem(K))}}catch(e){S=def()}
 boot();
@@ -107,6 +107,18 @@ function saveReg(raw){
  if(S.regs.some(r=>String(r.name).toLowerCase()===nm.toLowerCase()))return;
  if(S.regs.length>=30)return;
  S.regs.push({name:nm,games:0,wins:0});
+}
+const rkey=s=>String(s||'').trim().toLowerCase();
+function winPct(r){const g=r.games|0;return g?Math.round(100*(r.wins|0)/g)+'%':'-'}
+/* One result per game. rec is cleared by New Game and Reset. */
+function saveResult(){
+ if(S.rec||S.pot||(S.q&&S.q.length)||!(S.hand>1))return;
+ const alive=S.pl.filter(p=>p.stack>0);
+ if(alive.length!==1)return;
+ const win=rkey(alive[0].name);
+ S.pl.forEach(p=>{const r=S.regs.find(g=>rkey(g.name)===rkey(p.name));if(r)r.games=(r.games|0)+1});
+ const wr=S.regs.find(g=>rkey(g.name)===win);if(wr)wr.wins=(wr.wins|0)+1;
+ S.rec=1;
 }
 function seatNamed(raw){
  const id=S.nid++;
@@ -222,7 +234,7 @@ function boot(){
  if(!Array.isArray(S.regs))S.regs=[];
  S.regs=S.regs.filter(r=>r&&typeof r.name==='string'&&r.name.trim()).map(r=>({name:r.name.trim().slice(0,16),games:r.games|0,wins:r.wins|0}));
  if(!Number.isInteger(S.bba)||S.bba<0)S.bba=-1;
- S.orn=S.orn|0;S.orh=S.orh|0;S.orb=S.orb|0;
+ S.orn=S.orn|0;S.orh=S.orh|0;S.orb=S.orb|0;S.rec=S.rec?1:0;
  if(!S.pl.length){S.dl=0;return}
  const n=S.pl.length;
  S.dl=((S.dl|0)%n+n)%n;
@@ -366,7 +378,7 @@ function newGame(){
   if(n<S.pl.length)return bad('Players is lower than the number already seated.');
   const P=plan(n,t,r,b);if(P.used>t)return bad('Not enough chips for that depth. Lower the depth or the rebuys.');
   if(S.pot&&!confirm('This restarts the current hand. Continue?'))return false;
-  run(()=>{Object.assign(S,{total:t,maxRb:r,bbs:b,kop:k,start:P.st,sb:P.sb,bb:P.bb,lvl:1,hl:0,up:0,pot:0,hand:1,st:0,add:0,sel:null,dl:0,orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,q:[],kw:[]});S.pl.forEach(p=>Object.assign(p,{stack:P.st,bet:0,in:0,ok:0,fold:0,rb:0,ko:0}));seatBtn()})},
+  run(()=>{Object.assign(S,{total:t,maxRb:r,bbs:b,kop:k,start:P.st,sb:P.sb,bb:P.bb,lvl:1,hl:0,up:0,pot:0,hand:1,st:0,add:0,sel:null,dl:0,orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,q:[],kw:[],rec:0});S.pl.forEach(p=>Object.assign(p,{stack:P.st,bet:0,in:0,ok:0,fold:0,rb:0,ko:0}));seatBtn()})},
   '<p id="pv" class="bt" aria-live="polite"></p>');
  $('ov').oninput=pv;pv()}
 
@@ -386,7 +398,7 @@ function opt(id){const p=byId(id);ov(`<h2 id="t">${esc(p.name)}</h2><button data
  if(d.a==='del'&&confirm('Remove '+p.name+'?'))run(()=>dropPl(p))})}
 
 function regsDlg(){
- const rows=S.regs.map((r,i)=>`<div class="rg"><b>${esc(r.name)}</b><div class="row"><button data-a="ren" data-i="${i}" aria-label="Rename ${esc(r.name)}">Rename</button><button class="fold" data-a="del" data-i="${i}" aria-label="Delete ${esc(r.name)}">Delete</button></div></div>`).join('');
+ const rows=S.regs.map((r,i)=>`<div class="rg"><b>${esc(r.name)} · ${r.games|0} games · ${r.wins|0} wins · ${winPct(r)}</b><div class="row"><button data-a="edit" data-i="${i}" aria-label="Edit ${esc(r.name)}">Edit</button><button class="fold" data-a="del" data-i="${i}" aria-label="Delete ${esc(r.name)}">Delete</button></div></div>`).join('');
  ov(`<h2 id="t">Regular Players</h2>${rows||'<p class="bt">No saved names yet.</p>'}<button data-a="add"${S.regs.length>=30?' disabled':''}>Add</button><button data-x>Close</button>`,d=>{
   if('x' in d)return off();
   if(d.a==='add'){off();ask('Add Regular',[['Name','name','']],v=>{
@@ -397,11 +409,13 @@ function regsDlg(){
    run(()=>S.regs.push({name:nm,games:0,wins:0}));regsDlg();
   });return}
   const i=+d.i,r=S.regs[i];if(!r)return;
-  if(d.a==='ren'){off();ask('Rename Regular',[['Name','name',r.name]],v=>{
-   const nm=v.name.slice(0,16);
+  if(d.a==='edit'){off();ask('Edit Regular',[['Name','name',r.name],['Games','g',r.games|0,1],['Wins','w',r.wins|0,1]],v=>{
+   const nm=v.name.slice(0,16),g=+v.g,w=+v.w;
    if(!nm)return bad('Enter a name.');
+   if(!/^\d+$/.test(v.g)||!/^\d+$/.test(v.w))return bad('Enter whole numbers for games and wins.');
+   if(w>g)return bad('Wins cannot exceed games.');
    if(S.regs.some((q,j)=>j!==i&&q.name.toLowerCase()===nm.toLowerCase()))return bad('That name is already saved.');
-   run(()=>{r.name=nm});regsDlg();
+   run(()=>{r.name=nm;r.games=g;r.wins=w});regsDlg();
   });return}
   if(d.a==='del'&&confirm('Delete '+r.name+'?')){run(()=>{S.regs.splice(i,1)});regsDlg()}
  });
@@ -442,6 +456,7 @@ $('grid').onclick=e=>{const b=e.target.closest('button');if(!b)return;
  if(b.dataset.o)opt(+b.dataset.o);else if(b.dataset.id){S.sel=+b.dataset.id;S.add=0;save();draw()}};
 $('bar').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,c=cur();
  if(d.b==='start')return run(deal);
+ if(d.b==='save'){if(!S.rec)run(saveResult);return}
  if(!c)return;
  if(d.v!==undefined){const m=Math.max(0,c.stack-Math.max(0,hi()-c.bet));S.add=d.v==='0'?0:Math.min(S.add+Number(d.v),m);save();draw()}
  else if(d.s)sz(+d.s);
@@ -473,7 +488,9 @@ function draw(){
   const tag=p.fold?(p.stack<=0&&!p.in?'Bust':'Folded'):p.stack<=0?'All-In':p.bet?'Bet '+f(p.bet):p.ok?'Checked':'&nbsp;';
   const marks=(i===di?'<b class="bdg y" title="Button">D</b>':'')+(S.sbi&&p.id===S.sbi?'<b class="bdg">SB</b>':'')+(S.bbi&&p.id===S.bbi?'<b class="bdg y">BB</b>':'');
   return `<div class="p${p.id===S.sel?' sel':''}${p.fold?' f':''}"><button class="pick" data-id="${p.id}" aria-pressed="${p.id===S.sel}"><span class="nm">${marks}<span class="nx">${esc(p.name)}</span></span><span class="st">${f(p.stack)}</span>${meta(p)}<span class="bt">${tag}</span><span class="bb">${bbv(p.stack)}</span></button><button class="mo" data-o="${p.id}" aria-label="Options for ${esc(p.name)}">⋯</button></div>`}).join(''):'<p class="bt">No players yet. Tap “Add Player” to begin.</p>';
- if(!c||c.fold){$('bar').innerHTML='<p class="bt" style="text-align:center;margin:6px 0">'+(!n?'Add players to begin':S.pot?'Tap a player to act, or Award Pot at showdown':ready()?'Everyone seated? Start the hand.':S.hand>1&&S.pl.filter(p=>p.stack>0).length===1?'Winner: '+S.pl.find(p=>p.stack>0).name:'Need at least 2 players with chips')+'</p>'+(!S.pot&&ready()?'<button class="go" data-b="start" style="width:100%">Start Hand · Blinds '+f(S.sb)+'/'+f(S.bb)+'</button>':'');return}
+ const alive=S.pl.filter(p=>p.stack>0);
+ if(!S.pot&&!(S.q&&S.q.length)&&S.hand>1&&alive.length===1){$('bar').innerHTML='<p class="bt" style="text-align:center;margin:6px 0">Winner: '+esc(alive[0].name)+'</p><button class="go" data-b="save" style="width:100%;min-height:48px"'+(S.rec?' disabled':'')+'>Save Result</button>';return}
+ if(!c||c.fold){$('bar').innerHTML='<p class="bt" style="text-align:center;margin:6px 0">'+(!n?'Add players to begin':S.pot?'Tap a player to act, or Award Pot at showdown':ready()?'Everyone seated? Start the hand.':'Need at least 2 players with chips')+'</p>'+(!S.pot&&ready()?'<button class="go" data-b="start" style="width:100%">Start Hand · Blinds '+f(S.sb)+'/'+f(S.bb)+'</button>':'');return}
  const need=Math.max(0,t-c.bet),call=Math.min(need,c.stack);
  $('bar').innerHTML=`<div class="row"><b style="font-size:18px;flex:2">${esc(c.name)}</b><span class="bt" style="text-align:right;flex:3">To call ${f(need)} · Stack ${f(c.stack)}</span></div>
 <div class="row"><button class="fold" data-b="fold">Fold</button><button data-b="check">Check</button><button data-b="call">Call${call?' '+f(call):''}</button><button data-b="allin">All-In</button></div>
