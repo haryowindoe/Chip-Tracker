@@ -1,0 +1,13 @@
+---
+description: Chip tracker rules
+alwaysApply: true
+---
+- Single-file PWA: index.html (HTML+CSS+JS) + sw.js. No dependencies, no build step, no network calls, works offline.
+- State lives in one object `S`, saved to localStorage key `chipTracker.v1`. New fields need a default in `def()`. Saved games from older versions must keep loading. Never rename or remove existing fields.
+- Change state only through `run(fn)` (undo snapshot, save, redraw). `draw()` renders from state.
+- Never declare global names that clash with window properties (`top`, `name`, `status`, `length`, `parent`, `self`, `event`, `open`, `close`, `find`). `const top` stops the whole script.
+- Do not change betting, blind, pot or rebuy logic unless the task says so.
+- Every change bumps the `chips-vN` cache name in sw.js.
+- UI: 44px touch targets (48px for primary actions), visible focus rings, aria-labels on icon buttons, dialogs with role="dialog" and an inert background, tabular numbers, no `transition: all`, respect prefers-reduced-motion, safe-area insets.
+- Ask before adding any dependency or changing the file structure.
+- Finish by replying with only the list of files changed.
