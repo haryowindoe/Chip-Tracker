@@ -310,7 +310,7 @@ const TPL={
  9:{start:1300,hpl:9,lv:LV89},
  10:{start:1200,hpl:10,lv:[[4,8],[8,16],[12,24],[16,32],[20,40],[25,50],[35,70],[50,100],[60,120],[70,140],[80,160],[90,180]]}
 };
-const def=()=>({pl:[],pot:0,hand:1,st:0,dl:0,sel:null,add:0,start:2000,chips:[10,25,50,200,500],nid:1,sb:10,bb:20,hpl:10,hl:0,lvl:1,up:0,total:19540,maxRb:2,bbs:150,kop:10,sp:[],orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,q:[],kw:[],regs:[],rec:0,lv:null,li:0,custom:false});
+const def=()=>({pl:[],pot:0,hand:1,st:0,dl:0,sel:null,add:0,start:2000,chips:[10,25,50,200,500],nid:1,sb:10,bb:20,hpl:10,hl:0,lvl:1,up:0,total:19540,maxRb:2,bbs:150,kop:10,sp:[],orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,q:[],kw:[],regs:[],rec:0,lv:null,li:0,custom:false,pend:false});
 let S,U=[],saved=null;
 try{const raw=localStorage.getItem(K);if(raw)saved=JSON.parse(raw);S=saved?{...def(),...saved}:def()}catch(e){S=def();saved=null}
 boot();
@@ -498,6 +498,7 @@ function boot(){
   if(!S.lv.length)S.lv=null;
  }else S.lv=null;
  S.custom=!!S.custom;
+ S.pend=!!S.pend;
  if(!Number.isInteger(S.li)||S.li<0)S.li=0;
  if(S.lv){
   if(S.li>=S.lv.length)S.li=S.lv.length-1;
@@ -528,6 +529,7 @@ function boot(){
 
 /* Blinds: lv is the level list. A saved game with no lv keeps the generated ladder. */
 const nb=()=>LAD.find(x=>x>S.bb)||Math.ceil(S.bb*.75)*2;
+const cleanBb=n=>{const step=n<1000?50:n<10000?100:500;return Math.round(n/step)*step};
 const hasLv=()=>Array.isArray(S.lv)&&S.lv.length>0;
 const onLast=()=>hasLv()&&S.li>=S.lv.length-1;
 const tplFor=n=>{n=n|0;if(n<5)n=5;else if(n>10)n=10;return TPL[n]};
@@ -547,6 +549,7 @@ function resetTpl(){
 const lvlUp=()=>{
  if(hasLv()){
   if(S.li<S.lv.length-1){S.li++;S.sb=S.lv[S.li][0];S.bb=S.lv[S.li][1];S.lvl=S.li+1;S.hl=0;S.up=1}
+  else S.pend=true;
   return;
  }
  const b=nb();S.sb=b/2;S.bb=b;S.lvl++;S.hl=0;S.up=1;
@@ -554,6 +557,7 @@ const lvlUp=()=>{
 /* Start a hand: post the stored blinds. First to act = next dealt-in player after the BB. Orbit length is fixed at the first hand of the orbit. */
 const ready=()=>S.pl.filter(p=>p.stack>0).length>1;
 function deal(){
+ if(S.pend)return;
  const n=S.pl.length;
  if(n<2)return;
  const bb=S.pl.find(p=>p.id===S.bbi),sb=S.pl.find(p=>p.id===S.sbi);
@@ -670,6 +674,21 @@ function bust(){
    S.q.shift();if(!S.q.length)deal()})}},1);
  paint()}
 
+/* No next row in lv: ask before the next hand. Sticky, and pend brings it back after reload. */
+function nextBlinds(){
+ const prev=S.bb|0,bb0=cleanBb(prev*3/2),sb0=bb0/2;
+ ov(`<h2 id="t">Next Blinds</h2><label>SB<input name="sb" value="${sb0}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" spellcheck="false" enterkeyhint="done"></label><label>BB<input name="bb" value="${bb0}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" spellcheck="false" enterkeyhint="done"></label><button class="go" data-ok>Save</button>`,d=>{
+  if(!('ok' in d))return;
+  const box=$('ov').firstChild,sb=box.querySelector('[name="sb"]').value.trim(),bb=box.querySelector('[name="bb"]').value.trim();
+  if(!/^\d+$/.test(sb)||!/^\d+$/.test(bb))return bad('Use whole numbers for the blinds.');
+  if(!(+bb>prev))return bad('Big Blind must be above '+f(prev)+'.');
+  if(+sb>+bb)return bad('Small Blind cannot be above the Big Blind.');
+  off();
+  run(()=>{
+   S.lv.push([+sb,+bb]);S.li=S.lv.length-1;S.sb=+sb;S.bb=+bb;S.lvl=S.li+1;S.hl=0;S.up=1;S.pend=false;
+   if(!S.pot&&!(S.q&&S.q.length))deal()});
+ },1)}
+
 /* Chip-set fit: size the starting stack and first blinds so the whole set is in play (stack = depth x BB) */
 const plan=(n,tot,rb,bbs)=>{const bb=Math.max(2,Math.floor(tot/(n*(1+rb)*bbs))),st=bb*bbs;return{bb,sb:Math.floor(bb/2),st,used:st*n*(1+rb)}};
 function newGame(){
@@ -764,7 +783,7 @@ $('bl').onclick=()=>{
  const sb=+v.sb,bb=+v.bb,h=+v.hpl;
  if(!(Number.isInteger(sb)&&Number.isInteger(bb)&&Number.isInteger(h)&&sb>0&&bb>=sb&&h>=1))return bad('Use whole numbers: Small Blind up to Big Blind, and at least 1 hand per level.');
  run(()=>{S.sb=sb;S.bb=bb;S.hpl=h;S.up=0;S.custom=true;if(hasLv())S.lv[S.li]=[sb,bb]})},
- `<p class="bt">Level ${S.lvl} · ${S.hl} of ${S.hpl} hands played. ${nx?'Next level: '+f(nx[0])+'/'+f(nx[1])+'.':'Final level.'}</p>`+(nx?'<button data-nl>Next Level Now</button>':''),
+ `<p class="bt">Level ${S.lvl} · ${S.hl} of ${S.hpl} hands played.${nx?' Next level: '+f(nx[0])+'/'+f(nx[1])+'.':''}</p><button data-nl>Next Level Now</button>`,
  d=>{if('nl' in d){off();run(lvlUp)}});};
 function lvlDlg(){
  let rows=(hasLv()?S.lv:[[S.sb|0,S.bb|0]]).map(p=>[p[0],p[1]]),li=hasLv()?S.li|0:0;
@@ -816,6 +835,7 @@ $('dlb').onclick=()=>{
 
 function draw(){
  if(S.q.length&&$('ov').hidden)bust();
+ else if(S.pend&&$('ov').hidden)nextBlinds();
  const n=S.pl.length,t=hi(),c=cur(),R=pots(),wide=matchMedia('(min-width:900px)').matches;
  $('pot').textContent=f(S.pot);
  $('info').textContent=wide?'Pot':'Hand '+S.hand+' · '+SN[S.st]+' · '+n+'/10';
@@ -824,7 +844,7 @@ function draw(){
  if(live&&live.textContent!==msg)live.textContent=msg;
  $('add').disabled=n>=10;$('add').classList.toggle('go',!n);$('undo').disabled=!U.length;
  $('award').disabled=!S.pot;$('award').textContent=R.length>1?'Side Pots · Award':'Award Pot';
- $('bl').innerHTML='<span class="bl-l">'+(S.up?ICO.up:'')+'<span>'+(S.up?'Blinds up':'Blinds')+'</span></span><span class="bl-n">'+f(S.sb)+' / '+f(S.bb)+'</span><span class="bl-s">'+(onLast()?'Final level':'Level '+S.lvl)+' · Hand '+Math.min(S.hl+1,S.hpl)+'/'+S.hpl+'</span>';
+ $('bl').innerHTML='<span class="bl-l">'+(S.up?ICO.up:'')+'<span>'+(S.up?'Blinds up':'Blinds')+'</span></span><span class="bl-n">'+f(S.sb)+' / '+f(S.bb)+'</span><span class="bl-s">Level '+S.lvl+' · Hand '+Math.min(S.hl+1,S.hpl)+'/'+S.hpl+'</span>';
  $('bl').classList.toggle('up',!!S.up);
  const street=$('street');
  if(street)street.querySelectorAll('[data-i]').forEach(el=>{const on=+el.dataset.i===S.st;el.classList.toggle('now',on);if(on)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current')});
