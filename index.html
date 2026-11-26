@@ -175,6 +175,7 @@ button.pk.d1k{--face:#f9a825;--ink:#1a1404;--rim:#c17900;--spot:#fff8e1}
 button.pk.d5k{--face:#4e342e;--ink:#fff;--rim:#2b1b17;--spot:#d7ccc8}
 button.pk.d10k{--face:#37474f;--ink:#fff;--rim:#1c262b;--spot:#cfd8dc}
 .spb{display:flex;align-items:center;gap:8px;margin:0;padding:8px 12px;border-radius:12px;background:var(--ac-fill);color:var(--ac-ink);font-weight:800;font-size:14px}
+#chk{order:10;flex:1 1 100%;margin:0;padding:8px 12px;border-radius:12px;background:var(--danger);color:var(--danger-ink);font-weight:800;font-size:14px;line-height:1.3;text-align:center}
 .ov{position:fixed;inset:0;z-index:9;background:#000000c0;display:flex;overflow:auto;overscroll-behavior:contain;padding:24px 16px}
 .box{position:relative;margin:auto;background:var(--c1);color:var(--tx);border:1px solid var(--line);border-radius:20px;box-shadow:var(--sh);padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));width:min(480px,100%);max-height:min(86dvh,760px);overflow:auto;overscroll-behavior:contain;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:8px;row-gap:12px}
 .box>*:not(.dh):not(h2){grid-column:1 / -1}
@@ -250,6 +251,7 @@ label.ck input{display:inline-block;width:22px;height:22px;min-height:22px;margi
   #award{order:5;flex:none;width:100%}
   #dlb{order:6;flex:none;width:100%}
   #sp{order:7;flex:none;width:100%}
+  #chk{order:8;flex:none;width:100%}
   #count{display:block;position:fixed;z-index:6;top:max(20px,calc(env(safe-area-inset-top) + 14px));right:calc(360px + 16px);margin:0}
   #grid{grid-template-columns:1fr 1fr;grid-template-rows:repeat(5,minmax(0,1fr));gap:8px;align-content:stretch;height:calc(100dvh - 80px);margin:68px 360px 12px 0;padding:0 12px 0 max(12px,env(safe-area-inset-left));overflow:hidden}
   .pick:focus-visible{outline-offset:-3px}
@@ -293,6 +295,7 @@ label.ck input{display:inline-block;width:22px;height:22px;min-height:22px;margi
  <button type="button" id="award" class="go" aria-haspopup="dialog"></button>
  <button type="button" id="dlb" hidden aria-haspopup="dialog"></button>
  <p id="sp" class="spb" role="status" hidden><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="m12 3 2.4 5.4L20 9.2l-4 3.8.9 5.8L12 16.8 7.1 18.8 8 13 4 9.2l5.6-.8z"/></svg><span id="spt"></span></p>
+ <p id="chk" role="status" hidden></p>
 </header>
 <footer id="bar"></footer>
 </div>
@@ -310,7 +313,7 @@ const TPL={
  9:{start:1300,hpl:9,lv:LV89},
  10:{start:1200,hpl:10,lv:[[4,8],[8,16],[12,24],[16,32],[20,40],[25,50],[35,70],[50,100],[60,120],[70,140],[80,160],[90,180]]}
 };
-const def=()=>({pl:[],pot:0,hand:1,st:0,dl:0,sel:null,add:0,start:2000,chips:[10,25,50,200,500],nid:1,sb:10,bb:20,hpl:10,hl:0,lvl:1,up:0,total:19540,maxRb:2,bbs:150,kop:10,sp:[],orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,q:[],kw:[],regs:[],rec:0,lv:null,li:0,custom:false,pend:false});
+const def=()=>({pl:[],pot:0,hand:1,st:0,dl:0,sel:null,add:0,start:2000,chips:[10,25,50,200,500],nid:1,sb:10,bb:20,hpl:10,hl:0,lvl:1,up:0,total:19540,maxRb:2,bbs:150,kop:10,sp:[],orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,rot:0,q:[],kw:[],regs:[],rec:0,lv:null,li:0,custom:false,pend:false,issued:0,log:[]});
 let S,U=[],saved=null;
 try{const raw=localStorage.getItem(K);if(raw)saved=JSON.parse(raw);S=saved?{...def(),...saved}:def()}catch(e){S=def();saved=null}
 boot();
@@ -350,6 +353,40 @@ const byId=id=>S.pl.find(p=>p.id===id);
 const live=()=>S.pl.filter(p=>!p.fold);
 const bad=m=>{alert(m);return false};
 const pay=(p,n)=>{n=Math.max(0,Math.min(n,p.stack));p.stack-=n;p.bet+=n;p.in=(p.in||0)+n;S.pot+=n;p.ok=1};
+function onTable(){return S.pl.reduce((s,p)=>s+(p.stack|0),0)+(S.pot|0)}
+function chipOff(){return onTable()-(S.issued|0)}
+function chipMsg(){const d=chipOff();return d===0?'OK':'Off by '+f(Math.abs(d))}
+function setStack(p,n){n=n|0;S.issued=(S.issued|0)+(n-(p.stack|0));p.stack=n}
+function logEv(e){if(!Array.isArray(S.log))S.log=[];S.log.push(e);if(S.log.length>500)S.log.splice(0,S.log.length-500)}
+function btnId(){const n=S.pl.length;if(!n)return 0;const p=S.pl[(S.dl%n+n)%n];return p?p.id:0}
+function noteBtn(prev){const n=S.pl.length;if(!n)return;const p=S.pl[(S.dl%n+n)%n];if(!p||p.id===prev)return;logEv({t:'btn',id:p.id,name:p.name})}
+function noteBlind(prev){if(!prev||((S.sb|0)===prev.sb&&(S.bb|0)===prev.bb&&(S.lvl|0)===prev.lvl))return;logEv({t:'blind',sb:S.sb|0,bb:S.bb|0,lvl:S.lvl|0})}
+function logLine(e,full){
+ if(!e)return '';
+ const nm=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+ if(e.t==='hand'){
+  const won=(e.won||[]).map(w=>nm(w.name)+' '+w.n).join(', ')||'none';
+  let s='Hand '+e.h+' pot '+e.pot+' won '+won;
+  if(full&&e.pl)s+='\n'+e.pl.map(p=>nm(p.name)+' '+p.b+' -> '+p.a).join('\n');
+  return s;
+ }
+ if(e.t==='bust')return 'Bust '+nm(e.name);
+ if(e.t==='rebuy')return 'Rebuy '+nm(e.name)+' '+e.n;
+ if(e.t==='ko')return 'Knockout bonus '+nm(e.name)+' '+e.n;
+ if(e.t==='stack')return 'Stack '+nm(e.name)+' '+e.old+' -> '+e.n;
+ if(e.t==='btn')return 'Button '+nm(e.name);
+ if(e.t==='blind')return 'Blinds '+e.sb+'/'+e.bb+' level '+e.lvl;
+ if(e.t==='new')return 'New Game';
+ if(e.t==='reset')return e.tpl?'Reset to template':'Reset';
+ return e.t||'';
+}
+function logText(){return (S.log||[]).slice().reverse().map(e=>logLine(e,true)).join('\n\n')}
+function copyLog(){
+ const text=logText();
+ const legacy=()=>{const ta=document.createElement('textarea');ta.value=text;document.body.append(ta);ta.select();try{document.execCommand('copy')}catch(err){}ta.remove()};
+ if(navigator.clipboard&&navigator.clipboard.writeText){const p=navigator.clipboard.writeText(text);if(p&&p.catch)p.catch(legacy)}
+ else legacy();
+}
 function run(fn){U.push(JSON.stringify(S));if(U.length>50)U.shift();fn();save();draw()}
 function nxt(from){const n=S.pl.length;for(let i=1;i<=n;i++){const p=S.pl[(from+i)%n];if(!p.fold&&p.stack>0)return p.id}return null}
 
@@ -378,7 +415,9 @@ function saveResult(){
 function seatNamed(raw){
  const id=S.nid++;
  const nm=String(raw||'').trim().slice(0,16)||('Player '+id);
- S.pl.push({id,name:nm,stack:S.start,bet:0,in:0,ok:0,rb:0,ko:0,fold:S.pot>0?1:0});
+ const p={id,name:nm,stack:0,bet:0,in:0,ok:0,rb:0,ko:0,fold:S.pot>0?1:0};
+ S.pl.push(p);
+ setStack(p,S.start|0);
  maybeFit();
  return nm;
 }
@@ -416,12 +455,14 @@ function assignFromBB(id){
 }
 /* Between hands, recompute SB/BB from the current BTN so a new or broke seat is picked up. */
 function seatBtn(){
+ const prev=btnId();
  if(S.pot||(S.q&&S.q.length))return;
  const n=S.pl.length;
- if(n<2){S.bbi=0;S.sbi=0;S.bba=-1;if(n<1)S.dl=0;return}
+ if(n<2){S.bbi=0;S.sbi=0;S.bba=-1;if(n<1)S.dl=0;noteBtn(prev);return}
  let idx=(S.dl%n+n)%n;
  if(!inSeat(S.pl[idx])){for(let i=1;i<=n;i++){const j=(idx+i)%n;if(inSeat(S.pl[j])){idx=j;break}}}
  assignFromBTN(idx);
+ noteBtn(prev);
 }
 function post(){
  const sb=S.pl.find(p=>p.id===S.sbi),bb=S.pl.find(p=>p.id===S.bbi);
@@ -438,6 +479,7 @@ function canPick(){
  return !S.pot||onlyBlinds();
 }
 function moveBtn(id){
+ const prev=btnId();
  const p0=S.pl.find(p=>p.id===id);
  if(!p0||!chipIn(p0))return;
  const blind=onlyBlinds();
@@ -447,6 +489,7 @@ function moveBtn(id){
  }
  if(!assignFromBTN(S.pl.indexOf(p0)))return;
  if(blind)post();
+ noteBtn(prev);
 }
 /* BB moves one dealt-in seat. A removed BB leaves S.bba on the seat before it so this does not skip an extra player. */
 function advance(){
@@ -466,6 +509,7 @@ function advance(){
 function dropPl(p){
  const i=S.pl.indexOf(p);
  if(i<0)return;
+ S.issued=(S.issued|0)-(p.stack|0);
  const n0=S.pl.length,dl=(S.dl%n0+n0)%n0,wasBB=p.id===S.bbi,wasSB=p.id===S.sbi,wasBTN=i===dl,oldBba=S.bba;
  S.pl.splice(i,1);
  if(S.sel===p.id)S.sel=null;
@@ -489,9 +533,13 @@ function dropPl(p){
 function boot(){
  if(!Array.isArray(S.pl))S.pl=[];
  if(!Array.isArray(S.regs))S.regs=[];
+ if(!Array.isArray(S.log))S.log=[];
+ S.log=S.log.filter(e=>e&&typeof e==='object').slice(-500);
+ if(saved&&!Object.prototype.hasOwnProperty.call(saved,'issued'))S.issued=S.pl.reduce((s,p)=>s+(p.stack|0),0)+(S.pot|0);
+ else S.issued=S.issued|0;
  S.regs=S.regs.filter(r=>r&&typeof r.name==='string'&&r.name.trim()).map(r=>({name:r.name.trim().slice(0,16),games:r.games|0,wins:r.wins|0}));
  if(!Number.isInteger(S.bba)||S.bba<0)S.bba=-1;
- S.orn=S.orn|0;S.orh=S.orh|0;S.orb=S.orb|0;S.rec=S.rec?1:0;
+ S.orn=S.orn|0;S.orh=S.orh|0;S.orb=S.orb|0;S.rec=S.rec?1:0;S.rot=S.rot?1:0;
  if(saved&&!Array.isArray(saved.lv)){S.lv=null;if(!('custom' in saved))S.custom=true}
  if(Array.isArray(S.lv)){
   S.lv=S.lv.map(p=>Array.isArray(p)?[p[0]|0,p[1]|0]:null).filter(p=>p&&p[0]>0&&p[1]>=p[0]);
@@ -533,43 +581,53 @@ const cleanBb=n=>{const step=n<1000?50:n<10000?100:500;return Math.round(n/step)
 const hasLv=()=>Array.isArray(S.lv)&&S.lv.length>0;
 const onLast=()=>hasLv()&&S.li>=S.lv.length-1;
 const tplFor=n=>{n=n|0;if(n<5)n=5;else if(n>10)n=10;return TPL[n]};
-function applyTpl(n){
+function applyTpl(n,quiet){
  const t=tplFor(n);
+ const prev={sb:S.sb|0,bb:S.bb|0,lvl:S.lvl|0};
  S.start=t.start;S.hpl=t.hpl;S.lv=t.lv.map(p=>[p[0],p[1]]);
  S.li=0;S.sb=S.lv[0][0];S.bb=S.lv[0][1];S.lvl=1;S.hl=0;S.up=0;
- S.pl.forEach(p=>{p.stack=S.start;if(!S.pot){p.bet=0;p.in=0;p.ok=0;p.fold=0}});
+ let moved=false;
+ S.pl.forEach(p=>{if((p.stack|0)!==S.start)moved=true;setStack(p,S.start);if(!S.pot){p.bet=0;p.in=0;p.ok=0;p.fold=0}});
+ noteBlind(prev);
+ if(!quiet&&moved)logEv({t:'reset',tpl:1});
 }
 function maybeFit(){if(S.custom||S.hand!==1||S.pot)return;applyTpl(S.pl.length)}
 function resetTpl(){
  const n=S.pl.length,use=n<5?5:n>10?10:n;
  if((S.hand>1||S.pot>0)&&!confirm('A hand has been played. Reset stacks and blinds to the '+use+'-player template?'))return false;
- run(()=>{applyTpl(n);S.custom=false;if(!S.pot)seatBtn()});
+ run(()=>{applyTpl(n,true);S.custom=false;if(!S.pot)seatBtn();logEv({t:'reset',tpl:1})});
  return true;
 }
 const lvlUp=()=>{
+ const prev={sb:S.sb|0,bb:S.bb|0,lvl:S.lvl|0};
  if(hasLv()){
   if(S.li<S.lv.length-1){S.li++;S.sb=S.lv[S.li][0];S.bb=S.lv[S.li][1];S.lvl=S.li+1;S.hl=0;S.up=1}
   else S.pend=true;
+  noteBlind(prev);
   return;
  }
  const b=nb();S.sb=b/2;S.bb=b;S.lvl++;S.hl=0;S.up=1;
+ noteBlind(prev);
 };
-/* Start a hand: post the stored blinds. First to act = next dealt-in player after the BB. Orbit length is fixed at the first hand of the orbit. */
+/* Start a hand: post the blinds. rot places BB, SB and BTN once rebuys and Next Blinds are answered, from whoever still has chips. First to act = next dealt-in player after the BB. Orbit length is fixed at the first hand of the orbit. */
 const ready=()=>S.pl.filter(p=>p.stack>0).length>1;
 function deal(){
  if(S.pend)return;
+ const prev=btnId();
+ if(S.rot){S.rot=0;advance()}
  const n=S.pl.length;
- if(n<2)return;
+ if(n<2){noteBtn(prev);return}
  const bb=S.pl.find(p=>p.id===S.bbi),sb=S.pl.find(p=>p.id===S.sbi);
  if(!inSeat(bb)||!inSeat(sb)){
   let idx=(S.dl%n+n)%n;
   if(!inSeat(S.pl[idx])){for(let i=1;i<=n;i++){const j=(idx+i)%n;if(inSeat(S.pl[j])){idx=j;break}}}
-  if(!assignFromBTN(idx))return;
+  if(!assignFromBTN(idx)){noteBtn(prev);return}
  }
- if(S.pl.filter(inSeat).length<2)return;
+ if(S.pl.filter(inSeat).length<2){noteBtn(prev);return}
  if(!S.orn){S.orn=S.pl.filter(inSeat).length;S.orh=0}
  S.orh++;
  post();
+ noteBtn(prev);
 }
 
 /* Side pots from each player's total chips in this hand (p.in); folded chips are dead money */
@@ -579,12 +637,12 @@ function pots(){
  const rest=A.reduce((s,p)=>s+Math.max(0,p.in-v),0);if(rest&&R.length)R[R.length-1].amt+=rest;
  return R.reduce((s,r)=>s+r.amt,0)===S.pot?R:S.pot?[{amt:S.pot,el:live().map(p=>p.id)}]:[]}
 
-/* End of hand: pay winners, then move the BB one dealt-in seat. A new orbit starts every N hands. */
-function fin(A){const win=new Set();A.forEach(({amt,ids})=>{const w=S.pl.filter(p=>ids.includes(p.id));if(!w.length)return;const q=Math.floor(amt/w.length);w.forEach(p=>{p.stack+=q;win.add(p.id)});w[0].stack+=amt-q*w.length});
+/* End of hand: pay winners. The next blinds are placed in deal(), after rebuys. A new orbit starts every N hands. */
+function fin(A){const handNo=S.hand,potWas=S.pot|0,before=S.pl.map(p=>({id:p.id,name:p.name,b:p.stack|0})),win=new Set(),got=new Map();A.forEach(({amt,ids})=>{const w=S.pl.filter(p=>ids.includes(p.id));if(!w.length)return;const q=Math.floor(amt/w.length);w.forEach(p=>{p.stack+=q;win.add(p.id);got.set(p.id,(got.get(p.id)||0)+q)});const odd=amt-q*w.length;w[0].stack+=odd;if(odd)got.set(w[0].id,(got.get(w[0].id)||0)+odd)});logEv({t:'hand',h:handNo,pot:potWas,won:[...got.entries()].filter(([,n])=>n).map(([id,n])=>{const p=byId(id);return {id,name:p?p.name:'',n}}),pl:before.map(r=>{const p=S.pl.find(x=>x.id===r.id);return {id:r.id,name:r.name,b:r.b,a:p?p.stack|0:r.b}})});
  const bu=S.pl.filter(p=>p.in>0&&p.stack<=0).map(p=>p.id);
  S.pot=0;S.hand++;S.st=0;S.add=0;S.sel=null;S.up=0;
  S.pl.forEach(p=>{p.bet=0;p.in=0;p.ok=0;p.fold=p.stack<=0?1:0});
- advance();
+ S.rot=1;
  if(S.orn&&S.orh>=S.orn){S.orb++;S.orn=0;S.orh=0}
  S.q=bu;S.kw=[...win];
  if(++S.hl>=S.hpl)lvlUp();if(!S.q.length)deal()}
@@ -669,8 +727,9 @@ function bust(){
   (can?`<button class="go" data-r="1"${ko===null?' disabled':''}>Yes, Rebuy</button><button data-r="0"${ko===null?' disabled':''}>No, Out</button>`:`<button class="go" data-r="0"${ko===null?' disabled':''}>OK</button>`)+`</div>`,d=>{
   if(d.k!==undefined){ko=+d.k;paint()}
   else if(d.r!==undefined){off();run(()=>{
-   if(ko){const w=byId(ko);w.stack+=bon;w.ko=(w.ko|0)+1}
-   if(d.r==='1'){p.stack=S.start;p.rb=(p.rb|0)+1;p.fold=0}
+   logEv({t:'bust',id:p.id,name:p.name});
+   if(ko){const w=byId(ko);setStack(w,(w.stack|0)+bon);w.ko=(w.ko|0)+1;logEv({t:'ko',id:w.id,name:w.name,n:bon,from:p.id})}
+   if(d.r==='1'){setStack(p,S.start|0);p.rb=(p.rb|0)+1;p.fold=0;logEv({t:'rebuy',id:p.id,name:p.name,n:S.start|0})}
    S.q.shift();if(!S.q.length)deal()})}},1);
  paint()}
 
@@ -685,7 +744,9 @@ function nextBlinds(){
   if(+sb>+bb)return bad('Small Blind cannot be above the Big Blind.');
   off();
   run(()=>{
+   const prev={sb:S.sb|0,bb:S.bb|0,lvl:S.lvl|0};
    S.lv.push([+sb,+bb]);S.li=S.lv.length-1;S.sb=+sb;S.bb=+bb;S.lvl=S.li+1;S.hl=0;S.up=1;S.pend=false;
+   noteBlind(prev);
    if(!S.pot&&!(S.q&&S.q.length))deal()});
  },1)}
 
@@ -708,12 +769,14 @@ function newGame(){
   if(fit&&fit.used>t)return bad('Not enough chips for that depth. Lower the depth or the rebuys.');
   if(S.pot&&!confirm('This restarts the current hand. Continue?'))return false;
   run(()=>{
-   Object.assign(S,{total:t,maxRb:r,bbs:b,kop:k,pot:0,hand:1,st:0,add:0,sel:null,dl:0,orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,q:[],kw:[],rec:0});
+   S.issued=(S.issued|0)-(S.pot|0);
+   Object.assign(S,{total:t,maxRb:r,bbs:b,kop:k,pot:0,hand:1,st:0,add:0,sel:null,dl:0,orb:0,orn:0,orh:0,bbi:0,sbi:0,bba:-1,rot:0,q:[],kw:[],rec:0});
    S.pl.forEach(p=>Object.assign(p,{bet:0,in:0,ok:0,fold:0,rb:0,ko:0}));
-   applyTpl(n);
-   if(fit){S.start=fit.st;S.sb=fit.sb;S.bb=fit.bb;S.lv[0]=[fit.sb,fit.bb];S.pl.forEach(p=>{p.stack=S.start});S.custom=true}
+   applyTpl(n,true);
+   if(fit){const prev={sb:S.sb|0,bb:S.bb|0,lvl:S.lvl|0};S.start=fit.st;S.sb=fit.sb;S.bb=fit.bb;S.lv[0]=[fit.sb,fit.bb];S.pl.forEach(p=>setStack(p,S.start));S.custom=true;noteBlind(prev)}
    else S.custom=false;
-   seatBtn()});
+   seatBtn();
+   logEv({t:'new'})});
  },'<div id="pv" aria-live="polite"></div><button data-fit>Fit to My Chip Set</button>',d=>{
   if(!('fit' in d))return;
   const n=g('n'),t=g('t'),r=g('r'),b=g('b');
@@ -734,7 +797,7 @@ function custom(){const p=cur();if(!p)return;const t=hi(),max=p.bet+p.stack;
 function opt(id){const p=byId(id);ov(`<h2 id="t">${esc(p.name)}</h2><button data-a="ren">Rename</button><button data-a="edit">Set Chip Stack<b>${f(p.stack)}</b></button><button class="fold" data-a="del">Remove Player</button><button data-x>Close</button>`,d=>{
  off();
  if(d.a==='ren')ask('Rename Player',[['Name','name',p.name]],v=>v.name?run(()=>{p.name=v.name.slice(0,16)}):bad('Enter a name.'));
- if(d.a==='edit')ask('Set Chip Stack',[['Chips','n',p.stack,1]],v=>/^\d+$/.test(v.n)?run(()=>{p.stack=+v.n;if(!S.pot&&!p.bet){p.fold=p.stack<=0?1:0;seatBtn()}}):bad('Enter a whole number.'));
+ if(d.a==='edit')ask('Set Chip Stack',[['Chips','n',p.stack,1]],v=>{if(!/^\d+$/.test(v.n))return bad('Enter a whole number.');const n=+v.n;run(()=>{const o=p.stack|0;if(n!==o){setStack(p,n);logEv({t:'stack',id:p.id,name:p.name,old:o,n:p.stack|0})}if(!S.pot&&!p.bet){p.fold=p.stack<=0?1:0;seatBtn()}})}});
  if(d.a==='del'&&confirm('Remove '+p.name+'?'))run(()=>dropPl(p))})}
 
 function regsDlg(){
@@ -782,7 +845,7 @@ $('bl').onclick=()=>{
  ask('Blinds',[['Small Blind (SB)','sb',S.sb,1],['Big Blind (BB)','bb',S.bb,1],['Hands Per Level','hpl',S.hpl,1]],v=>{
  const sb=+v.sb,bb=+v.bb,h=+v.hpl;
  if(!(Number.isInteger(sb)&&Number.isInteger(bb)&&Number.isInteger(h)&&sb>0&&bb>=sb&&h>=1))return bad('Use whole numbers: Small Blind up to Big Blind, and at least 1 hand per level.');
- run(()=>{S.sb=sb;S.bb=bb;S.hpl=h;S.up=0;S.custom=true;if(hasLv())S.lv[S.li]=[sb,bb]})},
+ run(()=>{const prev={sb:S.sb|0,bb:S.bb|0,lvl:S.lvl|0};S.sb=sb;S.bb=bb;S.hpl=h;S.up=0;S.custom=true;if(hasLv())S.lv[S.li]=[sb,bb];noteBlind(prev)})},
  `<p class="bt">Level ${S.lvl} · ${S.hl} of ${S.hpl} hands played.${nx?' Next level: '+f(nx[0])+'/'+f(nx[1])+'.':''}</p><button data-nl>Next Level Now</button>`,
  d=>{if('nl' in d){off();run(lvlUp)}});};
 function lvlDlg(){
@@ -798,19 +861,21 @@ function lvlDlg(){
    const next=rows.map(p=>[String(p[0]).trim(),String(p[1]).trim()]);
    if(next.some(p=>!/^\d+$/.test(p[0])||!/^\d+$/.test(p[1])||+p[0]<=0||+p[1]<+p[0]))return bad('Each level needs a whole-number small blind and a big blind at least that big.');
    const lv=next.map(p=>[+p[0],+p[1]]);
-   run(()=>{S.lv=lv;S.li=li;S.sb=lv[li][0];S.bb=lv[li][1];S.lvl=li+1;S.custom=true;S.up=0});
+   run(()=>{const prev={sb:S.sb|0,bb:S.bb|0,lvl:S.lvl|0};S.lv=lv;S.li=li;S.sb=lv[li][0];S.bb=lv[li][1];S.lvl=li+1;S.custom=true;S.up=0;noteBlind(prev)});
    off()}});
  paint()}
-$('cfg').onclick=()=>{ov(`<h2 id="t">Setup</h2>${themePicker()}<button data-a="n">New Game</button><button data-a="p">Regular Players<b>${S.regs.length||'None'}</b></button><button data-a="s">Starting Stack<b>${f(S.start)}</b></button><button data-a="lv">Blind Levels</button><button data-a="t">Reset to Template</button><button data-a="c">Chip Buttons<b>${S.chips.join(', ')}</b></button><button data-a="g">Special Games<b>${S.sp.length||'None'}</b></button><button class="fold" data-a="r">Reset Game</button><button data-x>Close</button>`,d=>{
+$('cfg').onclick=()=>{ov(`<h2 id="t">Setup</h2>${themePicker()}<button data-a="n">New Game</button><button data-a="ck">Chip Check<b>${chipMsg()}</b></button><button data-a="lg">Audit Log<b>${(S.log&&S.log.length)||0}</b></button><button data-a="p">Regular Players<b>${S.regs.length||'None'}</b></button><button data-a="s">Starting Stack<b>${f(S.start)}</b></button><button data-a="lv">Blind Levels</button><button data-a="t">Reset to Template</button><button data-a="c">Chip Buttons<b>${S.chips.join(', ')}</b></button><button data-a="g">Special Games<b>${S.sp.length||'None'}</b></button><button class="fold" data-a="r">Reset Game</button><button data-x>Close</button>`,d=>{
  off();
  if(d.a==='n')newGame();
+ if(d.a==='ck')chipDlg();
+ if(d.a==='lg')auditDlg(-1);
  if(d.a==='p')regsDlg();
  if(d.a==='lv')lvlDlg();
  if(d.a==='t')resetTpl();
  if(d.a==='g')ask('Special Games',[['Games in rotation, comma separated (one per orbit)','g',S.sp.join(', ')]],v=>{const a=v.g.split(',').map(x=>x.trim()).filter(Boolean).slice(0,8);run(()=>{S.sp=a;S.orb=0})});
  if(d.a==='s')ask('Starting Stack',[['Chips for new players','n',S.start,1]],v=>+v.n>0&&/^\d+$/.test(v.n)?run(()=>{S.start=+v.n;S.custom=true}):bad('Enter a whole number above 0.'));
  if(d.a==='c')ask('Chip Buttons',[['Values, comma separated (max 6)','c',S.chips.join(', ')]],v=>{const a=v.c.split(',').map(x=>parseInt(x,10)).filter(x=>x>0).slice(0,6);return a.length?run(()=>{S.chips=a}):bad('Enter numbers like 10, 25, 100.')});
- if(d.a==='r'&&confirm('Reset all players, stacks, blinds and the pot? Undo can bring them back.'))run(()=>{const k={};['start','chips','hpl','total','maxRb','bbs','kop','sp','regs'].forEach(x=>{k[x]=S[x]});S={...def(),...k}})});
+ if(d.a==='r'&&confirm('Reset all players, stacks, blinds and the pot? Undo can bring them back.'))run(()=>{const k={},keep=Array.isArray(S.log)?S.log.slice(-499):[];['start','chips','hpl','total','maxRb','bbs','kop','sp','regs'].forEach(x=>{k[x]=S[x]});S={...def(),...k,log:keep,issued:0};logEv({t:'reset'})})});
  $('ov').onchange=e=>{if(e.target&&e.target.name==='theme')setTheme(e.target.value)}}
 
 $('grid').onclick=e=>{const b=e.target.closest('button');if(!b)return;
@@ -833,9 +898,30 @@ $('dlb').onclick=()=>{
  });
 };
 
+function chipDlg(){
+ const exp=S.issued|0,on=onTable();
+ ov(`<h2 id="t">Chip Check</h2><p>Expected <b>${f(exp)}</b></p><p>On table <b>${f(on)}</b></p><p><b>${esc(chipMsg())}</b></p><button type="button" data-x>Close</button>`,d=>{if('x' in d)off()});
+}
+function auditDlg(open){
+ const items=(S.log||[]).map((e,i)=>({e,i})).reverse();
+ const body=items.map(({e,i})=>{
+  if(e.t!=='hand')return `<p class="bt">${esc(logLine(e))}</p>`;
+  const on=open===i;
+  const detail=on?`<div class="bt">`+(e.pl||[]).map(p=>`${esc(p.name)} ${f(p.b)} → ${f(p.a)}`).join('<br>')+`</div>`:'';
+  const won=(e.won||[]).map(w=>esc(w.name)+' '+f(w.n)).join(', ');
+  return `<button type="button" data-i="${i}" aria-expanded="${on}">Hand ${e.h} · pot ${f(e.pot)}${won?' · '+won:''}</button>${detail}`;
+ }).join('');
+ ov(`<h2 id="t">Audit Log</h2><button type="button" class="go" data-a="copy">Copy Log</button>${body||'<p class="bt">No entries yet.</p>'}<button type="button" data-x>Close</button>`,d=>{
+  if(d.a==='copy'){copyLog();return}
+  if(d.i!==undefined){auditDlg(open===+d.i?-1:+d.i);return}
+  if('x' in d)off();
+ });
+}
 function draw(){
  if(S.q.length&&$('ov').hidden)bust();
  else if(S.pend&&$('ov').hidden)nextBlinds();
+ const gap=chipOff(),chk=$('chk');
+ if(chk){if(gap){chk.hidden=false;chk.textContent='Chip check off by '+f(Math.abs(gap))+', see Audit Log'}else chk.hidden=true}
  const n=S.pl.length,t=hi(),c=cur(),R=pots(),wide=matchMedia('(min-width:900px)').matches;
  $('pot').textContent=f(S.pot);
  $('info').textContent=wide?'Pot':'Hand '+S.hand+' · '+SN[S.st]+' · '+n+'/10';
