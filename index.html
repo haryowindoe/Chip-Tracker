@@ -797,7 +797,7 @@ function custom(){const p=cur();if(!p)return;const t=hi(),max=p.bet+p.stack;
 function opt(id){const p=byId(id);ov(`<h2 id="t">${esc(p.name)}</h2><button data-a="ren">Rename</button><button data-a="edit">Set Chip Stack<b>${f(p.stack)}</b></button><button class="fold" data-a="del">Remove Player</button><button data-x>Close</button>`,d=>{
  off();
  if(d.a==='ren')ask('Rename Player',[['Name','name',p.name]],v=>v.name?run(()=>{p.name=v.name.slice(0,16)}):bad('Enter a name.'));
- if(d.a==='edit')ask('Set Chip Stack',[['Chips','n',p.stack,1]],v=>{if(!/^\d+$/.test(v.n))return bad('Enter a whole number.');const n=+v.n;run(()=>{const o=p.stack|0;if(n!==o){setStack(p,n);logEv({t:'stack',id:p.id,name:p.name,old:o,n:p.stack|0})}if(!S.pot&&!p.bet){p.fold=p.stack<=0?1:0;seatBtn()}})}});
+ if(d.a==='edit')ask('Set Chip Stack',[['Chips','n',p.stack,1]],v=>{if(!/^\d+$/.test(v.n))return bad('Enter a whole number.');const n=+v.n;run(()=>{const o=p.stack|0;if(n!==o){setStack(p,n);logEv({t:'stack',id:p.id,name:p.name,old:o,n:p.stack|0})}if(!S.pot&&!p.bet){p.fold=p.stack<=0?1:0;seatBtn()}})});
  if(d.a==='del'&&confirm('Remove '+p.name+'?'))run(()=>dropPl(p))})}
 
 function regsDlg(){

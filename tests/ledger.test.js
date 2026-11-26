@@ -36,7 +36,7 @@ test('page does not load the test suite', () => {
   assert.equal(html.includes('jsdom'), false);
   assert.equal(html.includes('tests/'), false);
   assert.equal(sw.includes('tests'), false);
-  assert.match(sw, /chips-v12/);
+  assert.match(sw, /chips-v13/);
 });
 
 test('old save without issued is the chips already on the table', () => {
